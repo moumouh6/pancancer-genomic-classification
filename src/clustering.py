@@ -53,9 +53,11 @@ if __name__ == "__main__":
 
     X, y = fetch_and_cache()
     X = log_transform(X)
-    X = filter_variance(X)
-    X = standardize(X)
+    X, _ = filter_variance(X)   # le _ ignore la liste des gènes ici, pas besoin dans ce fichier
+    X, _ = standardize(X)       # le _ ignore le scaler ici
 
     X_pca = run_pca(X, n_components=2)
     cluster_labels = run_kmeans(X_pca)
     plot_clusters(X_pca, cluster_labels, y)
+
+    
