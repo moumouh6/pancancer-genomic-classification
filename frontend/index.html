@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pan-Cancer Classifier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F6F8F7;
+    --panel: #FFFFFF;
+    --ink: #16241F;
+    --ink-soft: #56675F;
+    --line: #DCE3DF;
+    --teal: #0E7C7B;
+    --teal-soft: #E4F1F0;
+    --amber: #C97A2B;
+    --error: #B5432E;
+
+    --c-brca: #E4572E;
+    --c-coad: #F3A712;
+    --c-kirc: #2E86AB;
+    --c-luad: #6A4C93;
+    --c-prad: #06923E;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 64px 20px 80px;
+  }
+
+  main {
+    width: 100%;
+    max-width: 620px;
+  }
+
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--teal);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+
+  .eyebrow::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--teal);
+    display: inline-block;
+  }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 40px;
+    line-height: 1.12;
+    margin: 0 0 14px;
+    letter-spacing: -0.01em;
+  }
+
+  .lede {
+    color: var(--ink-soft);
+    font-size: 15.5px;
+    line-height: 1.6;
+    margin: 0 0 40px;
+    max-width: 50ch;
+  }
+
+  .lede code {
+    font-family: 'IBM Plex Mono', monospace;
+    background: var(--teal-soft);
+    color: var(--teal);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 13.5px;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 28px;
+    margin-bottom: 20px;
+  }
+
+  .panel-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  .dropzone {
+    border: 1.5px dashed var(--line);
+    border-radius: 10px;
+    padding: 30px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .dropzone:hover, .dropzone.drag {
+    border-color: var(--teal);
+    background: var(--teal-soft);
+  }
+
+  .dropzone input { display: none; }
+
+  .dropzone-icon {
+    width: 34px;
+    height: 34px;
+    margin: 0 auto 12px;
+    color: var(--teal);
+  }
+
+  .dropzone-title {
+    font-size: 14.5px;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+
+  .dropzone-sub {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+  }
+
+  .file-chip {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: var(--teal-soft);
+    border-radius: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--teal);
+  }
+
+  .file-chip button {
+    background: none;
+    border: none;
+    color: var(--teal);
+    font-family: inherit;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    padding: 0;
+  }
+
+  .config-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+  }
+
+  .config-row input {
+    flex: 1;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--ink);
+    background: var(--bg);
+  }
+
+  .config-row input:focus {
+    outline: 2px solid var(--teal);
+    outline-offset: 1px;
+  }
+
+  button.primary {
+    width: 100%;
+    margin-top: 18px;
+    padding: 14px;
+    background: var(--ink);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 14.5px;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+
+  button.primary:hover:not(:disabled) { background: var(--teal); }
+  button.primary:active:not(:disabled) { transform: scale(0.995); }
+
+  button.primary:disabled {
+    background: var(--line);
+    color: var(--ink-soft);
+    cursor: not-allowed;
+  }
+
+  button.primary:focus-visible {
+    outline: 2px solid var(--teal);
+    outline-offset: 2px;
+  }
+
+  button.primary.secondary {
+    background: var(--panel);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    margin-top: 14px;
+  }
+
+  button.primary.secondary:hover:not(:disabled) {
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  button.primary.secondary:disabled {
+    background: var(--panel);
+    color: var(--line);
+  }
+
+  .hint {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin: 10px 2px 0;
+    line-height: 1.5;
+  }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 26px 0 18px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+  }
+
+  .divider::before, .divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+
+  .config-details {
+    margin-top: 16px;
+  }
+
+  .config-details summary {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    letter-spacing: 0.04em;
+  }
+
+  .config-details .config-row {
+    margin-top: 10px;
+  }
+
+  .csv-example {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin: 10px 0 8px;
+    color: var(--ink-soft);
+    overflow-x: auto;
+  }
+
+  .true-label-chip {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    background: var(--bg);
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 18px;
+  }
+
+  .true-label-chip.match { color: var(--teal); }
+  .true-label-chip.mismatch { color: var(--error); }
+
+  /* Results */
+  #result-panel { display: none; }
+
+  .result-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 22px;
+  }
+
+  .result-class {
+    font-family: 'Fraunces', serif;
+    font-size: 30px;
+    font-weight: 600;
+  }
+
+  .result-confidence {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+
+  .bar-row {
+    display: grid;
+    grid-template-columns: 60px 1fr 52px;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .bar-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    font-weight: 500;
+  }
+
+  .bar-track {
+    height: 8px;
+    background: var(--bg);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 5px;
+    transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .bar-pct {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+    text-align: right;
+  }
+
+  /* Status states */
+  .status {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    font-size: 13.5px;
+    margin-top: 18px;
+    padding: 12px 14px;
+    border-radius: 8px;
+  }
+
+  .status.loading {
+    display: flex;
+    background: var(--teal-soft);
+    color: var(--teal);
+  }
+
+  .status.error {
+    display: flex;
+    background: #FBEAE6;
+    color: var(--error);
+  }
+
+  .spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(14,124,123,0.25);
+    border-top-color: var(--teal);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  footer {
+    text-align: center;
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-top: 36px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+
+  @media (max-width: 480px) {
+    h1 { font-size: 32px; }
+    .panel { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">Pan-Cancer Classifier · Modèle local</div>
+  <h1>Quel type de cancer&nbsp;?</h1>
+  <p class="lede">
+    Dépose un fichier CSV avec le profil d'expression génique d'un patient
+    (colonnes <code>gene,value</code>) et le modèle prédit le type de tumeur
+    parmi cinq&nbsp;: BRCA, COAD, KIRC, LUAD, PRAD.
+  </p>
+
+  <div class="panel">
+    <span class="panel-label">Essayer le modèle</span>
+
+    <button class="primary" id="sampleBtn">🧬 Essayer avec un patient exemple</button>
+    <p class="hint">Tire au hasard un vrai patient du jeu de données et lance la prédiction — aucune donnée à préparer.</p>
+
+    <div class="divider"><span>ou utiliser vos propres données</span></div>
+
+    <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Choisir un fichier CSV">
+      <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="dropzone-title">Glisser un fichier CSV, ou cliquer</div>
+      <div class="dropzone-sub">Format attendu : gene,value — une ligne par gène</div>
+      <input type="file" id="fileInput" accept=".csv" />
+    </div>
+
+    <div class="file-chip" id="fileChip">
+      <span id="fileName"></span>
+      <button id="clearFile" aria-label="Retirer le fichier">×</button>
+    </div>
+
+    <details class="config-details">
+      <summary>Voir un exemple de format CSV attendu</summary>
+      <pre class="csv-example">gene,value
+gene_1,5.23
+gene_2,0.00
+gene_3,12.87
+gene_4,1.05
+...
+gene_2576,3.41</pre>
+      <p class="hint">
+        2 576 lignes au total — une par gène retenu par le modèle, avec sa valeur
+        d'expression brute (pas encore transformée). Les noms de gènes doivent
+        correspondre exactement à ceux utilisés à l'entraînement.
+      </p>
+    </details>
+
+    <button class="primary secondary" id="predictBtn" disabled>Prédire à partir du fichier</button>
+
+    <details class="config-details">
+      <summary>URL de l'API</summary>
+      <div class="config-row">
+        <input type="text" id="apiUrl" value="http://localhost:8000" aria-label="URL de l'API" />
+      </div>
+    </details>
+
+    <div class="status loading" id="statusLoading">
+      <div class="spinner"></div>
+      <span>Analyse du profil d'expression…</span>
+    </div>
+    <div class="status error" id="statusError"></div>
+  </div>
+
+  <div class="panel" id="result-panel">
+    <span class="panel-label">Résultat</span>
+    <div class="true-label-chip" id="trueLabelChip"></div>
+    <div class="result-head">
+      <div class="result-class" id="resultClass">—</div>
+      <div class="result-confidence" id="resultConfidence"></div>
+    </div>
+    <div id="bars"></div>
+  </div>
+
+  <footer>801 échantillons · 2 576 gènes retenus · Random Forest</footer>
+</main>
+
+<script>
+  const classColors = {
+    BRCA: 'var(--c-brca)',
+    COAD: 'var(--c-coad)',
+    KIRC: 'var(--c-kirc)',
+    LUAD: 'var(--c-luad)',
+    PRAD: 'var(--c-prad)',
+  };
+
+  const sampleBtn = document.getElementById('sampleBtn');
+  const trueLabelChip = document.getElementById('trueLabelChip');
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const fileChip = document.getElementById('fileChip');
+  const fileName = document.getElementById('fileName');
+  const clearFile = document.getElementById('clearFile');
+  const predictBtn = document.getElementById('predictBtn');
+  const statusLoading = document.getElementById('statusLoading');
+  const statusError = document.getElementById('statusError');
+  const resultPanel = document.getElementById('result-panel');
+  const resultClass = document.getElementById('resultClass');
+  const resultConfidence = document.getElementById('resultConfidence');
+  const barsContainer = document.getElementById('bars');
+  const apiUrlInput = document.getElementById('apiUrl');
+
+  let expressionData = null;
+
+  function resetStatus() {
+    statusLoading.style.display = 'none';
+    statusError.style.display = 'none';
+  }
+
+  function showError(message) {
+    resetStatus();
+    statusError.textContent = message;
+    statusError.style.display = 'flex';
+  }
+
+  function parseCSV(text) {
+    const lines = text.trim().split(/\r?\n/);
+    const data = {};
+    const start = /^\s*gene\s*,\s*value\s*$/i.test(lines[0]) ? 1 : 0;
+    for (let i = start; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      const commaIdx = line.lastIndexOf(',');
+      if (commaIdx === -1) continue;
+      const gene = line.slice(0, commaIdx).trim();
+      const value = parseFloat(line.slice(commaIdx + 1).trim());
+      if (!gene || Number.isNaN(value)) continue;
+      data[gene] = value;
+    }
+    return data;
+  }
+
+  function handleFile(file) {
+    resetStatus();
+    resultPanel.style.display = 'none';
+
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      showError("Le fichier doit être au format .csv");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const parsed = parseCSV(e.target.result);
+        const geneCount = Object.keys(parsed).length;
+        if (geneCount === 0) {
+          showError("Aucune donnée de gène reconnue dans ce fichier.");
+          return;
+        }
+        expressionData = parsed;
+        fileName.textContent = `${file.name} · ${geneCount.toLocaleString('fr-FR')} gènes`;
+        fileChip.style.display = 'flex';
+        predictBtn.disabled = false;
+      } catch (err) {
+        showError("Impossible de lire ce fichier CSV.");
+      }
+    };
+    reader.onerror = () => showError("Erreur de lecture du fichier.");
+    reader.readAsText(file);
+  }
+
+  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+  });
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files[0]) handleFile(e.target.files[0]);
+  });
+
+  ['dragover', 'dragleave', 'drop'].forEach(evt => {
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      if (evt === 'dragover') dropzone.classList.add('drag');
+      if (evt === 'dragleave' || evt === 'drop') dropzone.classList.remove('drag');
+    });
+  });
+  dropzone.addEventListener('drop', (e) => {
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+
+  clearFile.addEventListener('click', (e) => {
+    e.stopPropagation();
+    expressionData = null;
+    fileInput.value = '';
+    fileChip.style.display = 'none';
+    predictBtn.disabled = true;
+    resultPanel.style.display = 'none';
+    resetStatus();
+  });
+
+  async function runPrediction(expression, trueLabel, triggerBtn) {
+    resetStatus();
+    resultPanel.style.display = 'none';
+    statusLoading.style.display = 'flex';
+    triggerBtn.disabled = true;
+
+    const apiUrl = apiUrlInput.value.trim().replace(/\/$/, '');
+
+    try {
+      const response = await fetch(`${apiUrl}/predict`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expression })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        showError(data.detail || "L'API a renvoyé une erreur.");
+        return;
+      }
+
+      resetStatus();
+      renderResult(data, trueLabel);
+    } catch (err) {
+      showError(`Impossible de contacter l'API sur ${apiUrl}. Vérifie qu'elle tourne bien.`);
+    } finally {
+      triggerBtn.disabled = false;
+      if (triggerBtn === predictBtn) predictBtn.disabled = !expressionData;
+    }
+  }
+
+  sampleBtn.addEventListener('click', async () => {
+    resetStatus();
+    resultPanel.style.display = 'none';
+    statusLoading.style.display = 'flex';
+    sampleBtn.disabled = true;
+
+    const apiUrl = apiUrlInput.value.trim().replace(/\/$/, '');
+
+    try {
+      const response = await fetch(`${apiUrl}/sample`);
+      if (!response.ok) {
+        showError("Impossible de récupérer un patient exemple.");
+        sampleBtn.disabled = false;
+        return;
+      }
+      const { expression, true_label } = await response.json();
+      await runPrediction(expression, true_label, sampleBtn);
+    } catch (err) {
+      showError(`Impossible de contacter l'API sur ${apiUrl}. Vérifie qu'elle tourne bien.`);
+      sampleBtn.disabled = false;
+    }
+  });
+
+  predictBtn.addEventListener('click', () => {
+    if (!expressionData) return;
+    runPrediction(expressionData, null, predictBtn);
+  });
+
+  function renderResult(data, trueLabel) {
+    if (trueLabel) {
+      const match = trueLabel === data.predicted_class;
+      trueLabelChip.textContent = match
+        ? `✓ Vraie classe : ${trueLabel} — le modèle a bien prédit`
+        : `✗ Vraie classe : ${trueLabel} — le modèle a prédit ${data.predicted_class}`;
+      trueLabelChip.className = `true-label-chip ${match ? 'match' : 'mismatch'}`;
+      trueLabelChip.style.display = 'flex';
+    } else {
+      trueLabelChip.style.display = 'none';
+    }
+
+    resultClass.textContent = data.predicted_class;
+    resultClass.style.color = classColors[data.predicted_class] || 'var(--ink)';
+    resultConfidence.textContent = `${(data.confidence * 100).toFixed(1)}% de confiance`;
+
+    const sorted = Object.entries(data.probabilities).sort((a, b) => b[1] - a[1]);
+
+    barsContainer.innerHTML = '';
+    sorted.forEach(([label, prob]) => {
+      const pct = (prob * 100).toFixed(1);
+      const row = document.createElement('div');
+      row.className = 'bar-row';
+      row.innerHTML = `
+        <span class="bar-label" style="color:${classColors[label] || 'var(--ink)'}">${label}</span>
+        <div class="bar-track"><div class="bar-fill" style="background:${classColors[label] || 'var(--ink)'}"></div></div>
+        <span class="bar-pct">${pct}%</span>
+      `;
+      barsContainer.appendChild(row);
+    });
+
+    resultPanel.style.display = 'block';
+
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.bar-fill').forEach((el, i) => {
+        el.style.width = `${sorted[i][1] * 100}%`;
+      });
+    });
+  }
+</script>
+</body>
+</html>
