@@ -1,0 +1,20 @@
+# Archives brutes : fetch_and_cache() n'a besoin que des CSV déjà extraits
+data/raw/*.zip
+data/raw/*.tar.gz
+
+# Caches Python
+**/__pycache__/
+**/*.pyc
+
+# Pas nécessaires pour servir l'API
+notebooks/
+reports/
+results/
+frontend/
+.git
+.gitignore
+*.md
+environment.yml
+
+# Windows zone-identifier artifacts (vus dans ton arborescence)
+*:Zone.Identifier

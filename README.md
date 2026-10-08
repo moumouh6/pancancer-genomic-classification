@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # 🧬 Pan-Cancer Gene Expression Classifier
 Predicting cancer type from RNA-Seq gene expression profiles using unsupervised and supervised machine learning, with a full ML → API pipeline in progress.
 
@@ -195,6 +194,3 @@ python src/classification.py     # trains Random Forest, saves confusion matrix
 ## Scientific Context
 
 This project reproduces a well-studied benchmark problem in cancer genomics: multi-class tumor classification from RNA-Seq gene expression, using the TCGA Pan-Cancer dataset distributed via the UCI Machine Learning Repository. This type of pipeline — expression-based classification — is directly relevant to genomic surveillance and precision medicine work carried out by institutions such as the Institut Pasteur d'Algérie (IPA), bridging computational methods with practical diagnostic and research applications.
-=======
-# pancancer-genomic-classification
->>>>>>> 72c3c9d07720076f5d07042bfa112981c6b75408
