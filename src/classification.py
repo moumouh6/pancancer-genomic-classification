@@ -1,11 +1,11 @@
 import joblib
 from pathlib import Path
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, confusion_matrix
 import seaborn as sns
 import matplotlib.pyplot as plt
-from config import RANDOM_STATE
+from config import RANDOM_STATE, RESULTS_FIGURES_DIR, ROOT_DIR
+from cross_validation import build_pipeline
 
 
 def split_data(X, y, test_size=0.3):
@@ -19,14 +19,13 @@ def split_data(X, y, test_size=0.3):
     return X_train, X_test, y_train, y_test
 
 
-def train_random_forest(X_train, y_train):
-    model = RandomForestClassifier(
-        n_estimators=200,
-        random_state=RANDOM_STATE,
-        class_weight="balanced"
-    )
-    model.fit(X_train, y_train)
-    return model
+def train_pipeline(X_train, y_train):
+    """Fit the unified Pipeline (variance filter + scaler + Random Forest)
+    on train data only. This is the single object later used by the API:
+    one .fit() here, one .predict() on new raw gene-expression rows."""
+    pipeline = build_pipeline()
+    pipeline.fit(X_train, y_train)
+    return pipeline
 
 
 def evaluate_model(model, X_test, y_test):
@@ -37,6 +36,9 @@ def evaluate_model(model, X_test, y_test):
 
 
 def plot_confusion_matrix(cm, class_labels):
+    RESULTS_FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+    out_path = RESULTS_FIGURES_DIR / "confusion_matrix.png"
+
     plt.figure(figsize=(8, 6))
     sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
                 xticklabels=class_labels, yticklabels=class_labels)
@@ -44,33 +46,41 @@ def plot_confusion_matrix(cm, class_labels):
     plt.ylabel("Vraie classe")
     plt.title("Matrice de confusion")
     plt.tight_layout()
-    plt.savefig("results/figures/confusion_matrix.png", dpi=150)
+    plt.savefig(out_path, dpi=150)
     plt.show()
+    print(f"Matrice de confusion sauvegardée: {out_path}")
 
 
-def save_model(model, scaler, selected_genes, path="models/random_forest.joblib"):
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump({
-        "model": model,
-        "scaler": scaler,
-        "selected_genes": selected_genes
-    }, path)
-    print(f"Modèle sauvegardé: {path}")
+def save_pipeline(pipeline, path=None):
+    """Save the whole fitted Pipeline as ONE object: variance filter, scaler
+    and Random Forest together. The API only needs to load this one file and
+    call .predict() / .predict_proba() on a raw (log-transformed) gene vector
+    -- no separate gene list or scaler to manage."""
+    if path is None:
+        path = ROOT_DIR / "models" / "pancancer_pipeline.joblib"
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(pipeline, path)
+    print(f"Pipeline sauvegardé: {path}")
 
 
 if __name__ == "__main__":
     from data_loading import fetch_and_cache
-    from preprocessing import log_transform, filter_variance, standardize
+    from preprocessing import log_transform
 
     X, y = fetch_and_cache()
+
+    # log2(x+1) is a fixed, per-sample transform (no statistics estimated
+    # from the data), so applying it before the split is NOT leakage.
     X = log_transform(X)
-    X, selected_genes = filter_variance(X)
-    X, scaler = standardize(X)
 
+    # Split FIRST, on raw (log-transformed) data. The Pipeline below is
+    # fit only on X_train -- variance filter and scaler never see X_test.
     X_train, X_test, y_train, y_test = split_data(X, y)
-    model = train_random_forest(X_train, y_train)
 
-    y_pred, cm = evaluate_model(model, X_test, y_test)
-    plot_confusion_matrix(cm, model.classes_)
+    pipeline = train_pipeline(X_train, y_train)
 
-    save_model(model, scaler, selected_genes)
+    y_pred, cm = evaluate_model(pipeline, X_test, y_test)
+    plot_confusion_matrix(cm, pipeline.classes_)
+
+    save_pipeline(pipeline)
